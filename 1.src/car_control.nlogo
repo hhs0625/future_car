@@ -8,6 +8,7 @@ turtles-own [
   speed         ; the current speed of the car
   top-speed     ; the maximum speed of the car (different for all cars)
   target-lane   ; the desired lane of the car
+  current-lane
   patience      ; the driver's current level of patience
   status
 ]
@@ -32,6 +33,10 @@ to toggle-stopped-car-status
   ]
 end
 
+to set-target-lane
+  ask stopped-car [ set target-lane control-lane ]
+end
+
 to create-or-remove-cars
 
   ; make sure we don't have too many cars for the room we have on the road
@@ -43,6 +48,7 @@ to create-or-remove-cars
   create-turtles (number-of-cars - count turtles) [
     set color car-color
     move-to one-of free road-patches
+    set current-lane pycor ; Set the current-lane to the initial lane (pycor)
     set target-lane pycor
     set heading 90
     set top-speed 0.5 + random-float 0.5
@@ -123,20 +129,20 @@ to move-forward ; turtle procedure
   speed-up-car ; we tentatively speed up, but might have to slow down
   let blocking-cars other turtles in-cone (1 + speed) 180 with [ y-distance <= 1 ]
   let blocking-car min-one-of blocking-cars [ distance myself ]
-  if blocking-car != nobody [
-    ; match the speed of the car ahead of you and then slow
-    ; down so you are driving a bit slower than that car.
-    set speed [ speed ] of blocking-car
-    stop-car
+  ifelse blocking-car != nobody [
+      set speed [ speed ] of blocking-car
+      stop-car
+  ][
+    let pre-blocking-cars other turtles in-cone (5 + speed) 180 with [ y-distance <= 1 ]
+    let pre-blocking-car min-one-of pre-blocking-cars [ distance myself ]
+    if pre-blocking-car = stopped-car [
+      ; match the speed of the car ahead of you and then slow
+      ; down so you are driving a bit slower than that car.
+      set speed [ speed ] of pre-blocking-car
+      slow-down-car
+    ]
   ]
-  let pre-blocking-cars other turtles in-cone (10 + speed) 180 with [ y-distance <= 1 ]
-  let pre-blocking-car min-one-of pre-blocking-cars [ distance myself ]
-  if pre-blocking-car = stopped-car [
-    ; match the speed of the car ahead of you and then slow
-    ; down so you are driving a bit slower than that car.
-    set speed [ speed ] of pre-blocking-car
-    slow-down-car
-  ]
+
   ifelse status = 0
   [forward speed]
   [set speed 0
@@ -182,6 +188,7 @@ to move-to-target-lane ; turtle procedure
     ifelse blocking-car = nobody [
       forward 0.2
       set ycor precision ycor 1 ; to avoid floating point errors
+      set current-lane ycor ; Update current-lane as the car moves to the new lane
     ] [
       ; slow down if the car blocking us is behind, otherwise speed up
       ifelse towards blocking-car <= 180 [ slow-down-car ] [ speed-up-car ]
@@ -231,11 +238,11 @@ end
 GRAPHICS-WINDOW
 225
 10
-1243
-229
+1343
+249
 -1
 -1
-10.0
+10.9901
 1
 10
 1
@@ -343,7 +350,7 @@ number-of-cars
 number-of-cars
 1
 number-of-lanes * world-width
-33.0
+143.0
 1
 1
 NIL
@@ -515,12 +522,62 @@ NIL
 HORIZONTAL
 
 BUTTON
-240
-305
-392
-338
+225
+260
+377
+293
 toggle stopped car
 toggle-stopped-car-status
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+MONITOR
+395
+260
+577
+305
+[current-lane] of stopped-car
+[current-lane] of stopped-car
+17
+1
+11
+
+MONITOR
+395
+315
+570
+360
+NIL
+[target-lane] of stopped-car
+17
+1
+11
+
+INPUTBOX
+590
+255
+735
+315
+control-lane
+-3.0
+1
+0
+Number
+
+BUTTON
+600
+325
+722
+358
+NIL
+set-target-lane
 NIL
 1
 T
