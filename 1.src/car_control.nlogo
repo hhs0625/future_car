@@ -1,6 +1,7 @@
 globals [
   selected-car   ; the currently selected car
   stopped-car
+  stop-lane
   lanes          ; a list of the y coordinates of different lanes
 ]
 
@@ -10,6 +11,11 @@ turtles-own [
   target-lane   ; the desired lane of the car
   current-lane
   patience      ; the driver's current level of patience
+  distance_front ; distance from the car in front
+  speed_expected
+  distance_expected ;
+  distance_control ;
+  lane_front;
   status
 ]
 
@@ -28,8 +34,10 @@ end
 to toggle-stopped-car-status
   ifelse [status] of stopped-car = 0 [
     ask stopped-car [ set status 1 ]
+    set stop-lane [current-lane] of stopped-car
   ] [
     ask stopped-car [ set status 0 ]
+    set stop-lane 0
   ]
 end
 
@@ -119,47 +127,60 @@ end
 to go
   create-or-remove-cars
   ask turtles [ move-forward ]
-  ask turtles with [ patience <= 0 ] [ choose-new-lane ]
+  if stopped-car != 0 [
+    ask turtles with [ current-lane = stop-lane ] [ choose-new-lane ]
+  ]
+  ;ask turtles with [ patience <= 0 ] [ choose-new-lane ]
   ask turtles with [ ycor != target-lane ] [ move-to-target-lane ]
   tick
 end
 
 to move-forward ; turtle procedure
   set heading 90
-  speed-up-car ; we tentatively speed up, but might have to slow down
-  let blocking-cars other turtles in-cone (1 + speed) 180 with [ y-distance <= 1 ]
-  let blocking-car min-one-of blocking-cars [ distance myself ]
-  ifelse blocking-car != nobody [
-      set speed [ speed ] of blocking-car
-      stop-car
-  ][
-    let pre-blocking-cars other turtles in-cone (5 + speed) 180 with [ y-distance <= 1 ]
-    let pre-blocking-car min-one-of pre-blocking-cars [ distance myself ]
-    if pre-blocking-car = stopped-car [
-      ; match the speed of the car ahead of you and then slow
-      ; down so you are driving a bit slower than that car.
-      set speed [ speed ] of pre-blocking-car
-      slow-down-car
+
+  let front-car min-one-of other turtles with [ycor = [ycor] of myself and xcor > [xcor] of myself] [distance myself]
+  ifelse front-car != nobody [
+    set distance_front distance front-car - 1
+    set lane_front [current-lane] of front-car
+    ifelse distance_front < 1[
+       stop-car
+    ][
+      ifelse distance_front < 3[
+        slow-down-car
+      ][
+        let speed_front [speed] of front-car
+        set distance_expected (speed_front - speed) * 10
+        set distance_control distance_expected + distance_front - 3
+        let speed_control distance_control / 10
+        set speed (speed + speed_control)
+        if speed > top-speed [ set speed top-speed]
+      ]
     ]
+  ] [
+    speed-up-car
   ]
 
-  ifelse status = 0
-  [forward speed]
-  [set speed 0
-    set color yellow]
+
+  ifelse status = 0 [
+    forward speed
+  ] [
+    set speed 0
+    set color yellow
+  ]
 end
+
 
 to slow-down-car ; turtle procedure
   set speed (speed - deceleration)
   ;set speed 0
   if speed <= 0 [ set speed deceleration ]
   ; every time you hit the brakes, you loose a little patience
-  set patience patience - 1
+  ;set patience patience - 1
 end
 
 to stop-car ; turtle procedure
   set speed 0
-  set patience patience - 1
+  ;set patience patience - 1
 end
 
 to speed-up-car ; turtle procedure
@@ -350,7 +371,7 @@ number-of-cars
 number-of-cars
 1
 number-of-lanes * world-width
-143.0
+39.0
 1
 1
 NIL
@@ -544,18 +565,7 @@ MONITOR
 577
 305
 [current-lane] of stopped-car
-[current-lane] of stopped-car
-17
-1
-11
-
-MONITOR
-395
-315
-570
-360
-NIL
-[target-lane] of stopped-car
+[speed] of stopped-car
 17
 1
 11
@@ -587,6 +597,50 @@ NIL
 NIL
 NIL
 0
+
+MONITOR
+1115
+255
+1342
+300
+NIL
+[speed] of stopped-car
+17
+1
+11
+
+MONITOR
+1115
+345
+1307
+390
+NIL
+[distance_front] of stopped-car
+17
+1
+11
+
+MONITOR
+1115
+300
+1332
+345
+NIL
+[distance_expected] of stopped-car
+17
+1
+11
+
+MONITOR
+1115
+390
+1322
+435
+NIL
+[distance_control] of stopped-car
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
