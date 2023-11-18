@@ -1,6 +1,7 @@
 globals [
   selected-car   ; the currently selected car
   lanes          ; a list of the y coordinates of different lanes
+  activate-cr
 ]
 
 turtles-own [
@@ -22,6 +23,14 @@ ava-window-size
 
 ]
 
+to broke-car
+
+  let candidate-cars turtles with [xcor > -40 and xcor < 40]
+
+  let one-broke-car one-of candidate-cars
+  ask one-broke-car [set color yellow ]
+  ask one-broke-car [set status 1 ]
+end
 
 to setup
   clear-all
@@ -31,7 +40,17 @@ to setup
   set selected-car one-of turtles
   ask selected-car [ set color red ]
   reset-ticks
+  set activate-cr 0
 end
+
+to activate-congestion-redistribution
+  set activate-cr 1
+end
+
+to deactivate-congestion-redistribution
+  set activate-cr 0
+end
+
 
 to create-or-remove-cars
 
@@ -93,6 +112,7 @@ to draw-road-lines
 end
 
 to show-far-see [c current_window ypos lo_xcor hi_xcor lo_xcor2 hi_xcor2 ]
+
   let color_units (5.0 / max_farsee_units)
   if who = viewchecknum and member? ypos lanes [
     ask patches with [ pycor > ypos - 1 and pycor < ypos + 1 and ((pxcor >= lo_xcor and pxcor <= hi_xcor) or (pxcor >= lo_xcor2 and pxcor <= hi_xcor2))]
@@ -114,6 +134,10 @@ to far_see_and_move
   let global_right_cnt 0
   let global_reason_ratio 1
   let global_current_window 1
+
+  let total_left_ava 100000
+  let total_right_ava 100000
+  let total_middle_ava 100000
 
   let urgency global_current_window * 5 + 20
 
@@ -146,13 +170,24 @@ to far_see_and_move
         ]
       ]
       [
-        if m-ava < l-ava and m-ava < r-ava [
+        if m-ava < l-ava or m-ava < r-ava [
+
           ifelse l-ava > r-ava [
             if r-ava = 0 or l-ava / r-ava > ratio_to_change [
+
               let diff_cars (avg-cnt - l-cnt)
               let pct diff_cars / (m-cnt + 1) * 100
               let rnum random 100
-              if rnum < pct / urgency [
+
+
+              let pug pct / urgency
+
+              ;if who = viewchecknum [show  "xxx" ]
+              ;if who = viewchecknum [show word "diff_cars:" diff_cars]
+              ;if who = viewchecknum [show word "pct:" pct]
+              ;if who = viewchecknum [show word "rnum:" rnum]
+              ;if who = viewchecknum [show word "pug:" pug]
+              if rnum < pug  [
                 set temp-target-lane (ycor + 2)
               ]
             ]
@@ -271,6 +306,15 @@ to far_see_and_move
       set global_current_window current_window
     ]
 
+    if left_ava < total_left_ava [set total_left_ava left_ava ]
+    if right_ava < total_right_ava [set total_right_ava right_ava ]
+    if middle_ava < total_middle_ava [set total_middle_ava middle_ava ]
+
+    if total_middle_ava = 0 [ set global_middle_ava 0 ]
+    if total_right_ava = 0 [ set global_right_ava 0 ]
+    if total_left_ava = 0 [ set global_left_ava 0 ]
+
+
     set current_window current_window + 1
 ]
 
@@ -312,8 +356,11 @@ to go
   ask turtles [ move-forward ]
 
   ;move ny policy
-  ask turtles [ far_see_and_move ]
-  ask turtles with [ ycor != target-lane ] [ move-to-target-lane ]
+  if activate-cr = 1
+  [
+    ask turtles [ far_see_and_move ]
+    ask turtles with [ ycor != target-lane ] [ move-to-target-lane ]
+  ]
 
   ;move by patience
   ask turtles with [ patience <= 0 ] [ choose-new-lane ]
@@ -532,7 +579,7 @@ number-of-cars
 number-of-cars
 1
 number-of-lanes * world-width
-99.0
+94.0
 1
 1
 NIL
@@ -555,8 +602,6 @@ true
 "" ""
 PENS
 "average" 1.0 0 -10899396 true "" "plot mean [ speed ] of turtles"
-"max" 1.0 0 -11221820 true "" "plot max [ speed ] of turtles"
-"min" 1.0 0 -13345367 true "" "plot min [ speed ] of turtles"
 
 SLIDER
 10
@@ -607,7 +652,6 @@ PENS
 "average" 1.0 0 -10899396 true "" "plot mean [ patience ] of turtles"
 "max" 1.0 0 -11221820 true "" "plot max [ patience ] of turtles"
 "min" 1.0 0 -13345367 true "" "plot min [ patience ] of turtles"
-"selected car" 1.0 0 -2674135 true "" "plot [patience] of selected-car"
 
 BUTTON
 10
@@ -727,7 +771,7 @@ ticks_in_unit
 ticks_in_unit
 0
 100
-4.0
+5.0
 1
 1
 NIL
@@ -742,7 +786,7 @@ ratio_to_change
 ratio_to_change
 0
 100
-10.0
+5.0
 1
 1
 NIL
@@ -754,10 +798,61 @@ INPUTBOX
 992
 365
 viewchecknum
-34.0
+93.0
 1
 0
 Number
+
+BUTTON
+230
+290
+317
+323
+broke-car
+broke-car
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+335
+290
+427
+323
+activate cr
+activate-congestion-redistribution
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+445
+290
+507
+323
+off cr
+deactivate-congestion-redistribution
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
